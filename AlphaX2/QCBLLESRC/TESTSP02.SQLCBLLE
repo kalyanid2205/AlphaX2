@@ -34,7 +34,7 @@
 000034220512      *   01 KD   11.04.2022     Kalyani Deshkar.                      *
 000035220512      *                                                                *
 000036220512      *   02 KD   02.05.2022     Kalyani Deshkar.                      *
-000037220513      *                        - Stored procedure SP_CNTLST_new can sort   *
+000037220513      *                        - Stored procedure SP_CNTLST can sort   *
 000038220512      *                          by place as well as TNR.              *
 000039220512      *                                                                *
 000040220512      *   Release/Bugfix: ---                                          *
@@ -175,12 +175,12 @@
 000175220512       COPY CXPDATUM IN QCBLLECPY.
 000176220512
 000177220512      *----------------------------------------------------------------
-000178220513      *>   Create one time stored procedure SP_CNTLST_new
+000178220513      *>   Create one time stored procedure SP_CNTLST
 000179220512      *----------------------------------------------------------------
 000180220512       CREATE-ACTCOUNT-SP SECTION.
 000181220512
 000182220512       CREATE-ACTCOUNT-SP-00.
-000183220513           MOVE      "SP_CNTLST_new"
+000183220513           MOVE      "SP_CNTLST"
 000184220512                                     TO  H-TBL-TBLNAME
 000185220512           MOVE      "CREATE SP"     TO  H-TBL-FUNCTION
 000186220512           MOVE      "Create new stored procedure"
@@ -195,11 +195,11 @@
 000195220512
 000196220512           EXEC SQL
 000197220512
-000198220513             CREATE PROCEDURE ELSDB090/SP_CNTLST_new(
+000198220513             CREATE PROCEDURE ELSDB090/SP_CNTLST(
 000199220512               IN LID BIGINT, IN SCHEMA VARCHAR(10),
 000200220512               IN DTALIB VARCHAR(10))
 000201220512               LANGUAGE SQL
-000202220513               SPECIFIC SP_CNTLST_new
+000202220513               SPECIFIC SP_CNTLST
 000203220512               NOT DETERMINISTIC
 000204220512               MODIFIES SQL DATA
 000205220512               CALLED ON NULL INPUT
