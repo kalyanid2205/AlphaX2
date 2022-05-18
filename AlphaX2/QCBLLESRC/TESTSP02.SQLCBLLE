@@ -34,7 +34,7 @@
 000034220512      *   01 KD   11.04.2022     Kalyani Deshkar.                      *
 000035220512      *                                                                *
 000036220512      *   02 KD   02.05.2022     Kalyani Deshkar.                      *
-000037220512      *                        - Stored procedure SP_CNTLST can sort   *
+000037220513      *                        - Stored procedure SP_CNTLST can sort   *
 000038220512      *                          by place as well as TNR.              *
 000039220512      *                                                                *
 000040220512      *   Release/Bugfix: ---                                          *
@@ -125,178 +125,177 @@
 000125220512       01  H-SP-NAME                    PIC X(128).
 000126220512       01  H-SP-DTALIB                  PIC X(10).
 000127220512       01  H-SP-SCHEMA                  PIC X(10).
-000128220513       01  H-SP-SCHEMA1                 PIC X(10).
-000129220512
-000130220512           EXEC SQL
-000131220512                END   DECLARE SECTION
-000132220512           END-EXEC.
-000133220512
-000134220512      *****************************************************************
-000135220512      *           *****   Linkage Variables   *****                   *
-000136220512      *****************************************************************
-000137220512       LINKAGE  SECTION.
-000138220512
-000139220512       01 OUT-AX-RC                          PIC X(005).
-000140220512       01 OUT-AX-RCMSG                       PIC X(100).
-000141220512       01 OUT-AX-USER                        PIC X(010).
-000142220512       01 IN-AX-DTALIB                       PIC X(010).
-000143220512       01 IN-AX-SCHEMA                       PIC X(010).
-000144220512       01 OUT-AX-CNTLST                      PIC X(001).
-000145220512
-000146220512       PROCEDURE DIVISION USING OUT-AX-RC
-000147220512                                OUT-AX-RCMSG
-000148220512                                OUT-AX-USER
-000149220512                                IN-AX-DTALIB
-000150220512                                IN-AX-SCHEMA
-000151220512                                OUT-AX-CNTLST
-000152220512                                .
-000153220512
-000154220512       S   SECTION.
-000155220512       S01.
-000156220512           PERFORM   X01-DATUM.
-000157220512           MOVE      OUT-AX-USER    TO  H-TBL-USER.
-000158220512
-000159220512       S02.
-000160220512           INITIALIZE  H-TBL-FUNCTION
-000161220512                       H-TBL-OPERATION
-000162220512                       H-TBL-CREATED-TS
-000163220512                       .
-000164220512
-000165220512           MOVE       IN-AX-DTALIB        TO  H-SP-DTALIB.
-000166220512           MOVE       IN-AX-SCHEMA        TO  H-SP-SCHEMA.
-000167220512
-000168220512           PERFORM   CREATE-ACTCOUNT-SP
-000169220512              .
-000170220512
-000171220512       S999.
-000172220512
-000173220512       S-EXIT.
-000174220512           STOP RUN.
-000175220512
-000176220512       COPY CXPDATUM IN QCBLLECPY.
-000177220512
-000178220512      *----------------------------------------------------------------
-000179220512      *>   Create one time stored procedure SP_CNTLST
-000180220512      *----------------------------------------------------------------
-000181220512       CREATE-ACTCOUNT-SP SECTION.
-000182220512
-000183220512       CREATE-ACTCOUNT-SP-00.
-000184220512           MOVE      "SP_CNTLST"
-000185220512                                     TO  H-TBL-TBLNAME
-000186220512           MOVE      "CREATE SP"     TO  H-TBL-FUNCTION
-000187220512           MOVE      "Create new stored procedure"
-000188220512                                     TO  H-TBL-OPERATION
-000189220512
-000190220512       CREATE-ACTCOUNT-SP-02.
-000191220512
-000192220512           INITIALIZE  H-TBL-RC
-000193220512                       H-TBL-RCMSG
-000194220512                       .
-000195220512           MOVE ZEROES TO SQLCODE.
-000196220512
-000197220512           EXEC SQL
-000198220512
-000199220512             CREATE PROCEDURE ELSDB090/SP_CNTLST(
-000200220512               IN LID BIGINT, IN SCHEMA VARCHAR(10),
-000201220512               IN DTALIB VARCHAR(10))
-000202220512               LANGUAGE SQL
-000203220512               SPECIFIC SP_CNTLST
-000204220512               NOT DETERMINISTIC
-000205220512               MODIFIES SQL DATA
-000206220512               CALLED ON NULL INPUT
-000207220512               SET OPTION  ALWBLK = *ALLREAD ,
-000208220512               ALWCPYDTA = *OPTIMIZE ,
-000209220512               COMMIT = *NONE ,
-000210220512               DECRESULT = (31, 31, 00) ,
-000211220512               DYNDFTCOL = *NO ,
-000212220512               DYNUSRPRF = *USER ,
-000213220512               SRTSEQ = *HEX
-000214220512
-000215220512               BEGIN
-000216220512               DECLARE X INTEGER ;
-000217220512               DECLARE XLNR INTEGER ;
-000218220512               DECLARE XDAK NUMERIC ( 15 , 4 ) ;
-000219220512               DECLARE XBES NUMERIC ( 9 , 2 ) ;
-000220220512               DECLARE SORT_BY NUMERIC (2) ;
-000221220512
-000222220512               SET X = 1 ;
-000223220512               SET XLNR = (SELECT WAREHOUSE_ID FROM SCHEMA/O_INVLIST
-000224220512                                      WHERE INVLIST_ID = LID ) ;
-000225220512
-000226220512               SET SORT_BY = (SELECT SORT_BY FROM SCHEMA/O_INVLIST
-000227220512                                      WHERE INVLIST_ID = LID ) ;
-000228220512               FOR V CURSOR FOR
-000229220512                              SELECT ID as xID, OEM as xOEM,
-000230220512                              TNR AS XTNR , PLACE AS XPLACE
-000231220512                              FROM SCHEMA/O_INVPART WHERE
-000232220512                              INVLIST_ID = LID ORDER BY
-000233220512                              CASE WHEN SORT_BY = 0 THEN TNR END,        KD02
-000234220512                              CASE WHEN SORT_BY = 1 THEN PLACE END       KD02
-000235220512               DO
-000236220512                              SET XDAK = ( SELECT DAK FROM
-000237220512                             DTALIB/E_ETSTAMM WHERE LNR = XLNR AND
-000238220512                              TNR = XTNR AND HERST = XOEM ) ;
-000239220512
-000240220512                              SET XBES = ( SELECT AKTBES FROM
-000241220512                              DTALIB/E_ETSTAMM WHERE LNR = XLNR AND
-000242220512                              TNR = XTNR AND HERST = XOEM ) ;
-000243220512
-000244220512                              UPDATE SCHEMA/O_INVPART SET CNT = X ,
-000245220512                            DAK = XDAK, OLD_STOCK = XBES WHERE ID = xID;
-000246220512
-000247220512                              SET X = X + 1 ;
-000248220512               END FOR ;
-000249220512               END
-000250220512           END-EXEC.
-000251220512
-000252220512           MOVE      SQLCODE         TO  H-TBL-RC.
-000253220512
-000254220512           IF   SQLCODE  EQUAL  ZEROES
-000255220512                MOVE      'Y'             TO  OUT-AX-CNTLST
-000256220512                MOVE      Z-SP-CRT        TO  H-TBL-RCMSG
-000257220512           ELSE
-000258220512                IF   SQLCODE = -454
-000259220512                     MOVE      'N'             TO  OUT-AX-CNTLST
-000260220512                     MOVE      Z-SP-EXISTS     TO  H-TBL-RCMSG
-000261220512                ELSE
-000262220512                     MOVE      'N'             TO  OUT-AX-CNTLST
-000263220512                     MOVE      Z-SP-ERR        TO  H-TBL-RCMSG
-000264220512           END-IF.
-000265220512
-000266220512           PERFORM   INSERT-TBLLOG-TABLE.
-000267220512
-000268220512       CREATE-ACTCOUNT-SP-EXIT.
-000269220512           EXIT.
-000270220512
-000271220512      *--------------------------------------------
-000272220512      *>   Insert Data in O-TBLLOG table
-000273220512      *--------------------------------------------
-000274220512       INSERT-TBLLOG-TABLE SECTION.
-000275220512       INSERT-TBLLOG-TABLE-00.
-000276220512
-000277220512           MOVE ZEROES TO SQLCODE.
-000278220512           EXEC SQL
-000279220512             INSERT INTO O_TBLLOG
-000280220512                  (TBLNAME
-000281220512                  ,FUNCTION
-000282220512                  ,RC
-000283220512                  ,RCMSG
-000284220512                  ,LOGIN
-000285220512                  ,OPERATION
-000286220512                  )
-000287220512             VALUES
-000288220512                  (:H-TBL-TBLNAME
-000289220512                  ,:H-TBL-FUNCTION
-000290220512                  ,:H-TBL-RC
-000291220512                  ,:H-TBL-RCMSG
-000292220512                  ,:H-TBL-USER
-000293220512                  ,:H-TBL-OPERATION
-000294220512                  )
-000295220512           END-EXEC.
-000296220512           IF  SQLCODE  NOT = ZEROES
-000297220512              MOVE "00002"  TO  OUT-AX-RC
-000298220512              MOVE "Insert in O_TBLLOG table failed"
-000299220512                               TO  OUT-AX-RCMSG
-000300220512           END-IF.
-000301220512       INSERT-TBLLOG-TABLE-EXIT.
-000302220512           EXIT.
+000128220512
+000129220512           EXEC SQL
+000130220512                END   DECLARE SECTION
+000131220512           END-EXEC.
+000132220512
+000133220512      *****************************************************************
+000134220512      *           *****   Linkage Variables   *****                   *
+000135220512      *****************************************************************
+000136220512       LINKAGE  SECTION.
+000137220512
+000138220512       01 OUT-AX-RC                          PIC X(005).
+000139220512       01 OUT-AX-RCMSG                       PIC X(100).
+000140220512       01 OUT-AX-USER                        PIC X(010).
+000141220512       01 IN-AX-DTALIB                       PIC X(010).
+000142220512       01 IN-AX-SCHEMA                       PIC X(010).
+000143220512       01 OUT-AX-CNTLST                      PIC X(001).
+000144220512
+000145220512       PROCEDURE DIVISION USING OUT-AX-RC
+000146220512                                OUT-AX-RCMSG
+000147220512                                OUT-AX-USER
+000148220512                                IN-AX-DTALIB
+000149220512                                IN-AX-SCHEMA
+000150220512                                OUT-AX-CNTLST
+000151220512                                .
+000152220512
+000153220512       S   SECTION.
+000154220512       S01.
+000155220512           PERFORM   X01-DATUM.
+000156220512           MOVE      OUT-AX-USER    TO  H-TBL-USER.
+000157220512
+000158220512       S02.
+000159220512           INITIALIZE  H-TBL-FUNCTION
+000160220512                       H-TBL-OPERATION
+000161220512                       H-TBL-CREATED-TS
+000162220512                       .
+000163220512
+000164220512           MOVE       IN-AX-DTALIB        TO  H-SP-DTALIB.
+000165220512           MOVE       IN-AX-SCHEMA        TO  H-SP-SCHEMA.
+000166220512
+000167220512           PERFORM   CREATE-ACTCOUNT-SP
+000168220512              .
+000169220512
+000170220512       S999.
+000171220512
+000172220512       S-EXIT.
+000173220512           STOP RUN.
+000174220512
+000175220512       COPY CXPDATUM IN QCBLLECPY.
+000176220512
+000177220512      *----------------------------------------------------------------
+000178220513      *>   Create one time stored procedure SP_CNTLST
+000179220512      *----------------------------------------------------------------
+000180220512       CREATE-ACTCOUNT-SP SECTION.
+000181220512
+000182220512       CREATE-ACTCOUNT-SP-00.
+000183220513           MOVE      "SP_CNTLST"
+000184220512                                     TO  H-TBL-TBLNAME
+000185220512           MOVE      "CREATE SP"     TO  H-TBL-FUNCTION
+000186220512           MOVE      "Create new stored procedure"
+000187220512                                     TO  H-TBL-OPERATION
+000188220512
+000189220512       CREATE-ACTCOUNT-SP-02.
+000190220512
+000191220512           INITIALIZE  H-TBL-RC
+000192220512                       H-TBL-RCMSG
+000193220512                       .
+000194220512           MOVE ZEROES TO SQLCODE.
+000195220512
+000196220512           EXEC SQL
+000197220512
+000198220513             CREATE PROCEDURE ELSDB090/SP_CNTLST(
+000199220512               IN LID BIGINT, IN SCHEMA VARCHAR(10),
+000200220512               IN DTALIB VARCHAR(10))
+000201220512               LANGUAGE SQL
+000202220513               SPECIFIC SP_CNTLST
+000203220512               NOT DETERMINISTIC
+000204220512               MODIFIES SQL DATA
+000205220512               CALLED ON NULL INPUT
+000206220512               SET OPTION  ALWBLK = *ALLREAD ,
+000207220512               ALWCPYDTA = *OPTIMIZE ,
+000208220512               COMMIT = *NONE ,
+000209220512               DECRESULT = (31, 31, 00) ,
+000210220512               DYNDFTCOL = *NO ,
+000211220512               DYNUSRPRF = *USER ,
+000212220512               SRTSEQ = *HEX
+000213220512
+000214220512               BEGIN
+000215220512               DECLARE X INTEGER ;
+000216220512               DECLARE XLNR INTEGER ;
+000217220512               DECLARE XDAK NUMERIC ( 15 , 4 ) ;
+000218220512               DECLARE XBES NUMERIC ( 9 , 2 ) ;
+000219220512               DECLARE SORT_BY NUMERIC (2) ;
+000220220512
+000221220512               SET X = 1 ;
+000222220512               SET XLNR = (SELECT WAREHOUSE_ID FROM SCHEMA/O_INVLIST
+000223220512                                      WHERE INVLIST_ID = LID ) ;
+000224220512
+000225220512               SET SORT_BY = (SELECT SORT_BY FROM SCHEMA/O_INVLIST
+000226220512                                      WHERE INVLIST_ID = LID ) ;
+000227220512               FOR V CURSOR FOR
+000228220512                              SELECT ID as xID, OEM as xOEM,
+000229220512                              TNR AS XTNR , PLACE AS XPLACE
+000230220512                              FROM SCHEMA/O_INVPART WHERE
+000231220512                              INVLIST_ID = LID ORDER BY
+000232220512                              CASE WHEN SORT_BY = 0 THEN TNR END,        KD02
+000233220512                              CASE WHEN SORT_BY = 1 THEN PLACE END       KD02
+000234220512               DO
+000235220512                              SET XDAK = ( SELECT DAK FROM
+000236220512                             DTALIB/E_ETSTAMM WHERE LNR = XLNR AND
+000237220512                              TNR = XTNR AND HERST = XOEM ) ;
+000238220512
+000239220512                              SET XBES = ( SELECT AKTBES FROM
+000240220512                              DTALIB/E_ETSTAMM WHERE LNR = XLNR AND
+000241220512                              TNR = XTNR AND HERST = XOEM ) ;
+000242220512
+000243220512                              UPDATE SCHEMA/O_INVPART SET CNT = X ,
+000244220512                            DAK = XDAK, OLD_STOCK = XBES WHERE ID = xID;
+000245220512
+000246220512                              SET X = X + 1 ;
+000247220512               END FOR ;
+000248220512               END
+000249220512           END-EXEC.
+000250220512
+000251220512           MOVE      SQLCODE         TO  H-TBL-RC.
+000252220512
+000253220512           IF   SQLCODE  EQUAL  ZEROES
+000254220512                MOVE      'Y'             TO  OUT-AX-CNTLST
+000255220512                MOVE      Z-SP-CRT        TO  H-TBL-RCMSG
+000256220512           ELSE
+000257220512                IF   SQLCODE = -454
+000258220512                     MOVE      'N'             TO  OUT-AX-CNTLST
+000259220512                     MOVE      Z-SP-EXISTS     TO  H-TBL-RCMSG
+000260220512                ELSE
+000261220512                     MOVE      'N'             TO  OUT-AX-CNTLST
+000262220512                     MOVE      Z-SP-ERR        TO  H-TBL-RCMSG
+000263220512           END-IF.
+000264220512
+000265220512           PERFORM   INSERT-TBLLOG-TABLE.
+000266220512
+000267220512       CREATE-ACTCOUNT-SP-EXIT.
+000268220512           EXIT.
+000269220512
+000270220512      *--------------------------------------------
+000271220512      *>   Insert Data in O-TBLLOG table
+000272220512      *--------------------------------------------
+000273220512       INSERT-TBLLOG-TABLE SECTION.
+000274220512       INSERT-TBLLOG-TABLE-00.
+000275220512
+000276220512           MOVE ZEROES TO SQLCODE.
+000277220512           EXEC SQL
+000278220512             INSERT INTO O_TBLLOG
+000279220512                  (TBLNAME
+000280220512                  ,FUNCTION
+000281220512                  ,RC
+000282220512                  ,RCMSG
+000283220512                  ,LOGIN
+000284220512                  ,OPERATION
+000285220512                  )
+000286220512             VALUES
+000287220512                  (:H-TBL-TBLNAME
+000288220512                  ,:H-TBL-FUNCTION
+000289220512                  ,:H-TBL-RC
+000290220512                  ,:H-TBL-RCMSG
+000291220512                  ,:H-TBL-USER
+000292220512                  ,:H-TBL-OPERATION
+000293220512                  )
+000294220512           END-EXEC.
+000295220512           IF  SQLCODE  NOT = ZEROES
+000296220512              MOVE "00002"  TO  OUT-AX-RC
+000297220512              MOVE "Insert in O_TBLLOG table failed"
+000298220512                               TO  OUT-AX-RCMSG
+000299220512           END-IF.
+000300220512       INSERT-TBLLOG-TABLE-EXIT.
+000301220512           EXIT.
